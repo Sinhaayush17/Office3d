@@ -258,7 +258,7 @@ function tickConfetti(dt){if(!conf.visible)return;let alive=0;cdat.forEach((d,i)
 
 /* ================== ROOMS ================== */
 function floor(g,kind,rx,ry,tint){add(g,G.box,fmat(kind,rx,ry,tint),RW/2,-.01,RD/2,RW,.02,RD,false).receiveShadow=true;}
-function bubbles(R,list){list.forEach((b,i)=>setTimeout(()=>{if(W.rooms[R.i]===R)pop(R.P(b[0],b[1],b[2]),b[3],b[4]);},i*380));}
+function bubbles(R,list){if(vw<640)list=list.slice(0,1);list.forEach((b,i)=>setTimeout(()=>{if(W.rooms[R.i]===R)pop(R.P(b[0],b[1],b[2]),b[3],b[4]);},i*380));}
 
 function buildSync(g,R){
   floor(g,'wood',4,3,'#F2DFC6');cyl(g,3.6,0,3,1.95,.012,'#C9785C',false);cyl(g,3.6,0,3,1.72,.018,'#D68F72',false);
@@ -420,12 +420,12 @@ function route(a,b){if(a===b)return[];const dist=new Map([[a,0]]),prev=new Map()
   while(open.size){let u=null;for(const n of open)if(!u||dist.get(n)<dist.get(u))u=n;open.delete(u);if(u===b)break;for(const v of u.adj){const d=dist.get(u)+Math.hypot(v.x-u.x,v.z-u.z);if(!dist.has(v)||d<dist.get(v)){dist.set(v,d);prev.set(v,u);open.add(v);}}}
   const out=[];let n=b;while(n&&n!==a){out.unshift(n);n=prev.get(n);}return out;}
 function layout(asp){
-  if(asp>=1){const P=clamp(10.4+(1.72-asp)*12,10.4,15),zr=P/2,S=i=>({x0:-12+i*8,z0:-zr-RD,top:true,out:1.15,ring:true,east:i===2}),B=i=>({x0:-12+i*8,z0:zr,top:false,out:1.15,ring:true,east:i===2});
-    return{mode:'L',P,slots:[S(0),S(1),S(2),B(2),B(1),B(0)],bounds:{x0:-12,x1:12,z0:-zr-RD,z1:zr+RD},plaza:{x0:-12,x1:12,z0:-zr,z1:zr},yaw:.22,pitch:.59};}
-  const P=clamp(8+(1/asp-1.1)*14,7,20),D=3*RD+2.4+P,zA=-D/2,zB=zA+RD+2.4,zC=zB+RD+P,xs=[-9,1];
-  const mk=(c,z0,top,ring)=>({x0:xs[c],z0,top,out:ring?1.15:1.2,ring,east:true});
-  return{mode:'P',P,slots:[mk(0,zA,true,false),mk(1,zA,true,false),mk(1,zB,false,false),mk(1,zC,false,true),mk(0,zC,false,true),mk(0,zB,false,false)],
-    bounds:{x0:-9,x1:9,z0:zA,z1:zC+RD},plaza:{x0:-9,x1:9,z0:zB+RD,z1:zC},corr:zA+RD+1.2,yaw:.11,pitch:.8};}
+  if(asp>=1){const P=clamp(10.4+(1.72-asp)*12,10.4,15),zr=P/2,S=i=>({x0:-12+i*8,z0:-zr-RD,top:true,out:1.15,ring:0,east:i===2}),B=i=>({x0:-12+i*8,z0:zr,top:false,out:1.15,ring:0,east:i===2});
+    return{mode:'L',P,slots:[S(0),S(1),S(2),B(2),B(1),B(0)],bounds:{x0:-12,x1:12,z0:-zr-RD,z1:zr+RD},plazas:[{x0:-12,x1:12,z0:-zr,z1:zr}],yaw:.22,pitch:.59};}
+  /* tall screens: three pairs of rooms with an open strip between each pair */
+  const G=clamp(4.8+(1/asp-1.05)*8.5,4.8,13),D=3*RD+2*G,zA=-D/2,zB=zA+RD+G,zC=zB+RD+G,xs=[-8.7,.7],mk=(c,z0,top,ring)=>({x0:xs[c],z0,top,out:1.15,ring,east:true});
+  return{mode:'P',P:G,slots:[mk(0,zA,true,0),mk(1,zA,true,0),mk(1,zB,false,0),mk(1,zC,false,1),mk(0,zC,false,1),mk(0,zB,false,0)],
+    bounds:{x0:-8.7,x1:8.7,z0:zA,z1:zC+RD},plazas:[{x0:-8.7,x1:8.7,z0:zA+RD,z1:zB},{x0:-8.7,x1:8.7,z0:zB+RD,z1:zC}],yaw:.09,pitch:clamp(.8+(1/asp-1.3)*.3,.8,1.02)};}
 function buildWorld(asp){
   if(W.g)scene.remove(W.g);W.labels.concat(W.hots).forEach(l=>l.el.remove());pops.splice(0).forEach(p=>p.el.remove());
   Object.assign(W,{rooms:[],nodes:[],ring:[],people:[],plants:[],clicks:[],picks:[],labels:[],hots:[],walkers:[]});nmap.clear();
@@ -434,7 +434,7 @@ function buildWorld(asp){
   rb(g,cx,-.34,cz,bw+.6,.32,bd+.6,'#E2D5C1',.08);
   const gp=add(g,G.plane,new THREE.ShadowMaterial({opacity:.1}),cx,-.34,cz,bw+30,bd+30,1,false);gp.rotation.x=-PI/2;gp.receiveShadow=true;
   add(g,G.box,fmat('plaza',bw/2,bd/2),cx,-.012,cz,bw,.02,bd,false).receiveShadow=true;
-  const ringN=[],corrN=[];
+  const ringsN=L.plazas.map(()=>[]);
   L.slots.forEach((s,i)=>{const def=DEFS[i],rg=grp(g,s.x0,0,s.z0);
     const R={i,def,g:rg,x0:s.x0,z0:s.z0,top:s.top,n:0,fx:-99,open:0,via:[],seatH:.5,P:(x,y,z)=>[s.x0+x,y,s.z0+z]};
     def.build(rg,R);
@@ -447,7 +447,7 @@ function buildWorld(asp){
     const pk=add(rg,G.box,M('#000'),RW/2,1.1,RD/2,RW,2.2,RD,false);pk.visible=false;pk.userData.room=R;W.picks.push(pk);
     /* path nodes */
     const pts=[R.spot,...[...R.via].reverse(),[DX,s.top?RD-.85:.85],[DX,s.top?RD+s.out:-s.out]].map(p=>node(s.x0+p[0],s.z0+p[1]));
-    for(let k=1;k<pts.length;k++)link(pts[k-1],pts[k]);R.spotN=pts[0];R.doorN=[pts[pts.length-2],pts[pts.length-1]];(s.ring?ringN:corrN).push(pts[pts.length-1]);
+    for(let k=1;k<pts.length;k++)link(pts[k-1],pts[k]);R.spotN=pts[0];R.doorN=[pts[pts.length-2],pts[pts.length-1]];ringsN[s.ring].push(pts[pts.length-1]);
     /* overlay */
     if(CFG.showLabels){const el=document.createElement('div');el.className='lb';el.innerHTML='<i style="background:'+def.accent+'"></i>'+def.label+'<b>'+def.time+'</b>';ui.appendChild(el);
       W.labels.push({el,R,p:s.top?[s.x0+RW/2,HS+.5,s.z0]:[s.x0+RW/2,.1,s.z0+RD+.75]});}
@@ -456,17 +456,17 @@ function buildWorld(asp){
     const pz=s.top?RD+.32:-.32;rb(rg,2.6,0,pz,2.6,.36,.34,'#F7F3EA',.03);for(let k=0;k<6;k++)add(rg,G.ico,M(k%2?'#4F8E5E':'#3C7350',{flatShading:true}),1.55+k*.42,.46+(k%2)*.05,pz,.24,.2,.2);
     W.rooms.push(R);});
   /* corridor graph */
-  const pz=L.plaza,ins=1.15;for(const x of[pz.x0+ins,pz.x1-ins])for(const z of[pz.z0+ins,pz.z1-ins])ringN.push(node(x,z));
-  if(L.mode==='P'){const tm=node(0,pz.z0+ins),cc=node(0,L.corr);ringN.push(tm);corrN.push(cc);link(tm,cc);corrN.sort((a,b2)=>a.x-b2.x);for(let k=1;k<corrN.length;k++)link(corrN[k-1],corrN[k]);}
-  const rcz=(pz.z0+pz.z1)/2,uniq=[...new Set(ringN)].sort((a,b2)=>Math.atan2(a.z-rcz,a.x)-Math.atan2(b2.z-rcz,b2.x));
-  uniq.forEach((n,k)=>link(n,uniq[(k+1)%uniq.length]));W.ring=uniq;
+  const ins=1.15;W.rings=L.plazas.map((pz,pi)=>{const rn=ringsN[pi];for(const x of[pz.x0+ins,pz.x1-ins])for(const z of[pz.z0+ins,pz.z1-ins])rn.push(node(x,z));
+    if(L.plazas.length>1)rn.push(node(0,pi?pz.z0+ins:pz.z1-ins));
+    const cz2=(pz.z0+pz.z1)/2,u=[...new Set(rn)].sort((a,b2)=>Math.atan2(a.z-cz2,a.x)-Math.atan2(b2.z-cz2,b2.x));u.forEach((n,k)=>link(n,u[(k+1)%u.length]));return u;});
+  if(L.plazas.length>1)link(node(0,L.plazas[0].z1-ins),node(0,L.plazas[1].z0+ins));
   /* plaza furniture: kept to the corners so the middle stays clear for text */
-  const dx=pz.x1-3,dz=(pz.z1-pz.z0)/2-2.9;
-  [[-1,-1],[1,-1],[1,1],[-1,1]].forEach((q,k)=>{const x=q[0]*dx,z=rcz+q[1]*dz;rb(g,x,0,z,.9,.42,.9,'#F7F3EA',.05);plant(g,x,z,1.15,'tree','#F7F3EA').position.y=.2;
-    if(L.mode==='L'||k<2){const bz=z-q[1]*1.35;rb(g,x,.34,bz,.5,.07,1.5,WOOD,.02);bx(g,x,0,bz-.55,.4,.34,.06,INK);bx(g,x,0,bz+.55,.4,.34,.06,INK);}});
+  L.plazas.forEach(pz=>{const rcz=(pz.z0+pz.z1)/2,land=L.mode==='L',dx=land?pz.x1-3:6,dz=land?(pz.z1-pz.z0)/2-2.9:0;if(!land&&pz.z1-pz.z0<5.2)return;
+  (land?[[-1,-1],[1,-1],[1,1],[-1,1]]:[[-1,0],[1,0]]).forEach(q=>{const x=q[0]*dx,z=rcz+q[1]*dz;rb(g,x,0,z,.9,.42,.9,'#F7F3EA',.05);plant(g,x,z,1.15,'tree','#F7F3EA').position.y=.2;
+    if(land){const bz=z-q[1]*1.35;rb(g,x,.34,bz,.5,.07,1.5,WOOD,.02);bx(g,x,0,bz-.55,.4,.34,.06,INK);bx(g,x,0,bz+.55,.4,.34,.06,INK);}});});
   /* colleagues walking the loop + the office cat */
   [[4,.1,1,1.25,.38,false],[1,.45,-1,1.05,-.38,true],[6,.78,1,1.4,.34,false]].forEach(w=>{const c=mkPerson(LOOKS[w[0]]);c.pose='walk';c.carry=w[5];if(w[5])mug(c.aR.hand,0,-.02,.05,'#E07A4F');g.add(c.root);
-    clk(c.root,()=>{c.waveT=T+1.6;egg('hey','Hey!',[c.root.position.x,1.95,c.root.position.z],'#4C6FD8');});W.walkers.push({c,fr:w[1],dir:w[2],sp:w[3],lane:w[4]});});
+    clk(c.root,()=>{c.waveT=T+1.6;egg('hey','Hey!',[c.root.position.x,1.95,c.root.position.z],'#4C6FD8');});W.walkers.push({c,fr:w[1],dir:w[2],sp:w[3],lane:w[4],ri:W.walkers.length%W.rings.length});});
   const cat=grp(g,0,0,0),cb=grp(cat,0,0,0);const CO='#E39A4B';rb(cb,0,.12,0,.17,.16,.42,CO,.07);sph(cb,0,.3,.24,.105,CO);bx(cb,.055,.38,.25,.05,.07,.03,CO).rotation.z=-.3;bx(cb,-.055,.38,.25,.05,.07,.03,CO).rotation.z=.3;
   sph(cb,.04,.31,.335,.014,INK,false);sph(cb,-.04,.31,.335,.014,INK,false);sph(cb,0,.28,.345,.012,'#E88FA8',false);rb(cb,0,.12,.1,.12,.1,.2,'#FBF3E6',.04);
   const tail=grp(cb,0,.24,-.2);bx(tail,0,0,0,.035,.3,.035,CO).rotation.x=-.5;const legs=[];for(const lx of[-.06,.06])for(const lz of[-.14,.15]){const lg=grp(cb,lx,.12,lz);cyl(lg,0,-.12,0,.026,.12,CO);legs.push(lg);}
@@ -511,13 +511,13 @@ function updateHero(dt){
   for(const r of W.rooms){const near=moving&&Math.hypot(hero.x-r.doorW[0],hero.z-r.doorW[1])<1.55?1:0;r.open=clamp(r.open+clamp(near-r.open,-dt*2.4,dt*3.2),0,1);if(r.pv)r.pv.rotation.y=r.sign*ease(r.open)*1.62;
     const act=(r.i===hero.cur&&still)||hov===r;r.hm.opacity+=((hov===r?.95:act?.5+Math.sin(T*3)*.15:0)-r.hm.opacity)*.15;}
 }
-function ringAt(fr){const n=W.ring.length;let tot=0;const len=[];for(let i=0;i<n;i++){const a=W.ring[i],b=W.ring[(i+1)%n],l=Math.hypot(b.x-a.x,b.z-a.z);len.push(l);tot+=l;}
-  let d=((fr%1)+1)%1*tot;for(let i=0;i<n;i++){if(d<=len[i]){const a=W.ring[i],b=W.ring[(i+1)%n],k=d/len[i];return{x:lerp(a.x,b.x,k),z:lerp(a.z,b.z,k),dx:(b.x-a.x)/len[i],dz:(b.z-a.z)/len[i],tot};}d-=len[i];}return{x:0,z:0,dx:1,dz:0,tot};}
+function ringAt(fr,ri){const RG=W.rings[ri||0],n=RG.length;let tot=0;const len=[];for(let i=0;i<n;i++){const a=RG[i],b=RG[(i+1)%n],l=Math.hypot(b.x-a.x,b.z-a.z);len.push(l);tot+=l;}
+  let d=((fr%1)+1)%1*tot;for(let i=0;i<n;i++){if(d<=len[i]){const a=RG[i],b=RG[(i+1)%n],k=d/len[i];return{x:lerp(a.x,b.x,k),z:lerp(a.z,b.z,k),dx:(b.x-a.x)/len[i],dz:(b.z-a.z)/len[i],tot};}d-=len[i];}return{x:0,z:0,dx:1,dz:0,tot};}
 function updateWalkers(dt){
-  for(const w of W.walkers){const p=ringAt(w.fr);w.fr+=w.dir*w.sp*dt/p.tot;const c=w.c,tx=p.x-p.dz*w.lane,tz=p.z+p.dx*w.lane,k=w.init?1-Math.exp(-dt*5):1;w.init=1;
+  for(const w of W.walkers){const p=ringAt(w.fr,w.ri);w.fr+=w.dir*w.sp*dt/p.tot;const c=w.c,tx=p.x-p.dz*w.lane,tz=p.z+p.dx*w.lane,k=w.init?1-Math.exp(-dt*5):1;w.init=1;
     c.root.position.x+=(tx-c.root.position.x)*k;c.root.position.z+=(tz-c.root.position.z)*k;c.ph+=dt*w.sp*3.9;
     let da=Math.atan2(p.dx*w.dir,p.dz*w.dir)-c.root.rotation.y;while(da>PI)da-=PI*2;while(da<-PI)da+=PI*2;c.root.rotation.y+=da*(1-Math.exp(-dt*6));}
-  const C=W.cat;if(C){const p=ringAt(C.fr),resting=Math.sin(T*.23)>.55&&T-C.jump>1;if(!resting)C.fr+=.55*dt/p.tot;const k=1-Math.exp(-dt*4);
+  const C=W.cat;if(C){const p=ringAt(C.fr,W.rings.length-1),resting=Math.sin(T*.23)>.55&&T-C.jump>1;if(!resting)C.fr+=.55*dt/p.tot;const k=1-Math.exp(-dt*4);
     C.g.position.x+=(p.x+p.dz*.75-C.g.position.x)*k;C.g.position.z+=(p.z-p.dx*.75-C.g.position.z)*k;let da=Math.atan2(p.dx,p.dz)-C.g.rotation.y;while(da>PI)da-=PI*2;while(da<-PI)da+=PI*2;C.g.rotation.y+=da*k;
     const j=T-C.jump;C.g.position.y=j<.6?Math.sin(j/.6*PI)*.5:0;C.cb.rotation.x+=((resting?-.35:0)-C.cb.rotation.x)*.1;C.tail.rotation.z=Math.sin(T*3)*.5;
     C.legs.forEach((l,i)=>{l.rotation.x=resting?0:Math.sin(T*11+(i%3?PI:0))*.6;});}
@@ -526,13 +526,13 @@ function updateWalkers(dt){
 /* ---------- camera ---------- */
 const cam={yaw:.3,pitch:.63,dist:80,target:new THREE.Vector3(),px:0,py:0,yawNow:.3};
 function camPlace(yaw,pitch){const cp=Math.cos(pitch);camera.position.set(cam.target.x+Math.sin(yaw)*cp*cam.dist,cam.target.y+Math.sin(pitch)*cam.dist,cam.target.z+Math.cos(yaw)*cp*cam.dist);camera.lookAt(cam.target);camera.updateMatrixWorld();}
-function fit(){const L=W.L,b=W.bounds;cam.yaw=L.yaw;cam.pitch=L.pitch;camera.aspect=vw/vh;camera.updateProjectionMatrix();cam.target.set((b.x0+b.x1)/2,1,(b.z0+b.z1)/2);cam.dist=90;
+function fit(){const L=W.L,b=W.bounds;cam.yaw=L.yaw;cam.pitch=L.pitch;camera.fov=L.mode==='P'?12:22;camera.aspect=vw/vh;camera.updateProjectionMatrix();cam.target.set((b.x0+b.x1)/2,1,(b.z0+b.z1)/2);cam.dist=90;
   const rt=new THREE.Vector3(),up=new THREE.Vector3(),mx=.95,my=vh<520?.8:.86;
   for(let it=0;it<10;it++){camPlace(cam.yaw,cam.pitch);let x0=9,x1=-9,y0=9,y1=-9;
     for(const x of[b.x0-.4,b.x1+.4])for(const y of[-.35,HS+.5])for(const z of[b.z0-.4,b.z1+.4]){V.set(x,y,z).project(camera);x0=Math.min(x0,V.x);x1=Math.max(x1,V.x);y0=Math.min(y0,V.y);y1=Math.max(y1,V.y);}
     const hh=Math.tan(camera.fov*PI/360)*cam.dist,hw=hh*camera.aspect;rt.setFromMatrixColumn(camera.matrixWorld,0);up.setFromMatrixColumn(camera.matrixWorld,1);
     cam.target.addScaledVector(rt,(x0+x1)/2*hw).addScaledVector(up,((y0+y1)/2-.015)*hh);cam.dist*=Math.max((x1-x0)/2/mx,(y1-y0)/2/my);}
-  camera.near=Math.max(1,cam.dist-60);camera.far=cam.dist+90;camera.updateProjectionMatrix();}
+  camera.near=Math.max(1,cam.dist-70);camera.far=cam.dist+110;camera.updateProjectionMatrix();}
 
 /* ---------- pointer ---------- */
 const ptr={x:0,y:0,on:false,t:-9,w:new THREE.Vector3(),ndc:new THREE.Vector2()},ray=new THREE.Raycaster(),plane=new THREE.Plane(new THREE.Vector3(0,1,0),-1.5);let hov=null,hovO=null;
